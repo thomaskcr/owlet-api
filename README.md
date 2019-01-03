@@ -68,7 +68,9 @@ HTTP/1.1 202 Accepted
 
 ```
 
-That results in an inbound TCP connection from the base to the app:
+This tells the owlet to initiate a connection with a server at `ip` on the specified port with the specified uri (i.e. `http://172.17.5.186:40011/local_lan/...`. 
+
+Running netcat gives request that comes from the owlet
 
 ```
 $ nc -v -l 40011
@@ -83,12 +85,28 @@ Content-Length: 106
 {"key_exchange":{"ver":1,"random_1":"vHBzXO5HZ5/kBZlx","time_1":105605732147035,"proto":1,"key_id":49373}}
 ```
 
-Which is then swiftly terminated as I have no idea what should the response be. The downside also is that I can't intercept the traffic as the app advertises the iPhone address and not the proxy so it bypasses my proxy and wireshark. So more to be seen later once I figure this out.
+And running a simple flask server to respond with a `random_2` and `time_2` seems to keep the connection alive. 
 
-The local_reg does not have any auth in the initial call and the tokens that the app receives from the server are not JWT so I'm not sure if there comes some authentication in the subsequent steps of the telemetry connection.
+```
+from flask import Flask
+from flask import jsonify
 
-The question also is if the app works even outside of local WiFi network.
+import time
 
+app = Flask(__name__)
+
+@app.route("/local_lan/key_exchange.json", methods=['GET', 'POST'])
+def key_exchange_handler():
+
+    d = {"random_2": "ABCDABCDABCDABCD", "time_2": long(time.time()) }
+    
+    return jsonify(d)
+
+if __name__ == "__main__":
+    app.run(debug=True, port=40011, host="0.0.0.0")
+```
+
+At this point there seems to be some type of get request required to prompt the device for the values. 
 
 ## Code
 
